@@ -23,12 +23,13 @@ The PRD defines six modules:
 
 ## Stack
 
-- **Mobile:** React Native (TypeScript)
-- **API:** Node.js REST behind NGINX (TypeScript)
-- **PostgreSQL:** users, plans, subscriptions, payments, partners, offers, vouchers
-- **MongoDB:** activity logs, audit trails, redemption events
-- **Redis:** sessions, caching, rate limiting
+- **Mobile:** React Native CLI (iOS & Android, TypeScript)
+- **API:** Node.js REST deployed as Vercel Serverless Functions (TypeScript)
+- **PostgreSQL:** Neon / Supabase with serverless connection pooling (users, plans, subscriptions, payments, partners, offers, vouchers)
+- **MongoDB:** MongoDB Atlas (activity logs, audit trails, redemption events)
+- **Redis:** Upstash Redis / Vercel KV (sessions, caching, rate limiting)
 - **Push:** Firebase Cloud Messaging
+- **Hosting:** Vercel (Edge Network + Serverless Functions)
 
 ## Status
 

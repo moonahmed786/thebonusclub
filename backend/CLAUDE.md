@@ -21,6 +21,7 @@ Organize by module, not by technical layer:
 
 ```
 backend/
+  api/               # Vercel serverless function entrypoint (index.ts)
   src/
     modules/
       auth/          # register, login, refresh, logout
@@ -32,8 +33,8 @@ backend/
       notifications/ # FCM token registry, push triggers
       admin/         # admin-only endpoints
     shared/
-      db/            # postgres + mongo clients, migrations
-      cache/         # redis client, helpers
+      db/            # postgres (neon/supabase) + mongo (atlas) clients, migrations
+      cache/         # redis client (upstash), helpers
       auth/          # jwt verify, role guards
       errors/        # error classes and mapper
       logger/
@@ -42,6 +43,7 @@ backend/
     docs/            # swagger setup
   test/
   migrations/
+  vercel.json        # routing, headers, and cron jobs
 ```
 
 Each module owns its routes, service, repository, schemas, and tests. Modules call each other through their service, never through another module's database tables directly.
@@ -94,7 +96,7 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
   - Conditional update: `UPDATE vouchers SET status='redeemed' WHERE id=? AND status='claimed'`. If zero rows changed, return `409 VOUCHER_ALREADY_REDEEMED`.
   - Record the redemption (partner, time, amount if given) in Postgres and an event in Mongo.
   - A redemption is never reversed silently. Corrections are a separate, audited admin action.
-- Expiry: a scheduled job moves `claimed` vouchers past their expiry to `expired`. The job must be safe to run twice.
+- Expiry: a scheduled job moves `claimed` vouchers past their expiry to `expired`. On Vercel, this is triggered via Vercel Cron Jobs (`vercel.json`) calling a secured endpoint (`/api/v1/cron/expire-vouchers`) protected with a `CRON_SECRET` header. The job must be safe to run twice.
 - Redis may cache "is this voucher valid" for speed, but a redemption always checks Postgres. Never redeem based on cache alone.
 
 ## 8. Push notifications (Module 5)
@@ -106,13 +108,13 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
 
 ## 9. Open decision
 
-- Framework: Express or NestJS. Do not start scaffolding until this is decided. If not decided, ask.
+- Framework: Express or NestJS. Configured for Vercel Serverless Functions (e.g. `@vendia/serverless-express` for Express or NestJS serverless handler). Do not start scaffolding until this is decided. If not decided, ask.
 
 ## 10. Databases
 
-- Postgres: migrations only. Never change schema by hand. Each migration is reversible or marked irreversible in its header.
-- Mongo: define a schema or validator for each collection. No unbounded documents; cap arrays.
-- Connection pools sized from config. No connection per request.
+- Postgres (Neon / Supabase): migrations only. Never change schema by hand. Each migration is reversible or marked irreversible in its header. Must connect through a serverless connection pooler to prevent exhausting connections during concurrent serverless invocations.
+- Mongo (MongoDB Atlas): define a schema or validator for each collection. No unbounded documents; cap arrays. Cache client singleton outside handler to reuse connections across warm serverless executions.
+- Redis (Upstash / Vercel KV): REST/HTTP or connection-pooled client suitable for ephemeral execution.
 - Every query that reads user data filters by member or admin scope. Never trust an ID from the request alone.
 
 ## 11. Logging and audit
@@ -131,7 +133,8 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
 ## 13. Commands (fill in once the framework is chosen)
 
 - Install: `npm install`
-- Dev: `npm run dev`
+- Dev: `npm run dev` or `vercel dev`
 - Test: `npm test`
 - Lint and typecheck: `npm run lint && npm run typecheck`
 - Migrate: `npm run migrate:up`
+- Deploy: `vercel` (preview) / `vercel --prod` (production)

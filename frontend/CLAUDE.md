@@ -20,6 +20,8 @@ Nothing else. No web views of partner sites, no in-app payments, no social featu
 
 ```
 frontend/
+  android/         # Native Android project (Gradle, google-services.json)
+  ios/             # Native iOS project (CocoaPods, GoogleService-Info.plist)
   src/
     app/           # navigation and screen routing
     features/
@@ -49,7 +51,7 @@ Each feature owns its screens, hooks, and components. Shared code goes in `share
 
 ## 4. Authentication and storage
 
-- Store the access and refresh tokens in the platform secure store (Keychain on iOS, Keystore on Android). Never in AsyncStorage or plain files.
+- Store the access and refresh tokens in the platform secure store (Keychain on iOS, Keystore on Android via `react-native-keychain`). Never in AsyncStorage or plain files.
 - Clear all tokens and cached member data on logout.
 - If a refresh fails, send the user to log in. Do not loop.
 - Never store full voucher codes, card numbers, or personal details in logs, crash reports, or analytics events.
@@ -79,7 +81,7 @@ Each feature owns its screens, hooks, and components. Shared code goes in `share
 ## 8. Push notifications (Module 5)
 
 - Ask for notification permission at a sensible moment (after first login, with a reason), not on first launch.
-- Register the FCM token with the backend after login and update it when it changes. Remove it on logout.
+- Register the FCM token with the backend after login and update it when it changes. Remove it on logout. Implemented using native `@react-native-firebase/app` and `@react-native-firebase/messaging`.
 - Tapping a notification opens the relevant voucher or card screen. Verify the member is still signed in before navigating.
 - Notification text contains no personal data and no full voucher code.
 
@@ -112,14 +114,64 @@ Each feature owns its screens, hooks, and components. Shared code goes in `share
 - Test the claim flow end to end on both iOS and Android before each release build.
 - Snapshot tests only for stable components, not whole screens.
 
-## 13. Build and release
+## 13. Build, export, and store publishing
 
-- Use Expo EAS (or the chosen CLI) for builds. Keep build profiles for development, preview, and production.
-- Environment selection by build profile, not by editing code. No production API URL in development builds.
-- Do not submit to the Apple App Store or Google Play without explicit approval. The PRD budgets $25 (Google) and $99/year (Apple) for publishing.
+The ultimate goal for the frontend is exporting production release builds and publishing to the **Google Play Store** (Android) and **Apple App Store** (iOS).
+
+### Android (Google Play Store)
+
+1. **Release Artifact:** Google Play requires an Android App Bundle (`.aab`), not an APK.
+2. **Signing Keystore:**
+   - Generate a dedicated upload keystore (PKCS12) via `keytool`:
+     ```bash
+     keytool -genkeypair -v -storetype PKCS12 -keystore release.keystore -alias bonusclub-key -keyalg RSA -keysize 2048 -validity 10000
+     ```
+   - Store credentials in `android/gradle.properties` (or CI environment secrets). **Never commit `release.keystore` or keystore passwords to git.**
+3. **Build Command:**
+   ```bash
+   cd android && ./gradlew clean bundleRelease
+   ```
+   - Output: `android/app/build/outputs/bundle/release/app-release.aab`.
+4. **Google Play Store Submission:**
+   - Target SDK level must adhere to the latest Google Play requirements (Android 14+ / API 34+).
+   - Set up app listing on Google Play Console ($25 one-time developer fee).
+   - Upload `.aab` to Internal Testing track first, then promote to Closed Testing and Production.
+   - Required store assets: App Icon (512×512 PNG, max 1MB), Feature Graphic (1024×500 PNG), Screenshots (minimum 2 phone screenshots, 16:9 or 9:16), Privacy Policy URL.
+
+### iOS (Apple App Store & TestFlight)
+
+1. **Prerequisites & Apple Developer Account:**
+   - Active Apple Developer Program enrollment ($99/year).
+   - App ID registered with Push Notifications entitlement enabled in Apple Developer Portal.
+   - Upload APNs Key (`.p8`) to Firebase Console for FCM push notifications to work on iOS.
+2. **Certificates & Provisioning:**
+   - iOS Distribution Certificate + App Store Provisioning Profile configured in Xcode (`Signing & Capabilities`).
+3. **Build & Export:**
+   - Update `CFBundleShortVersionString` (version) and `CFBundleVersion` (build number).
+   - Generate release archive via Xcode (`Product > Archive`) or CLI:
+     ```bash
+     cd ios && xcodebuild -workspace TheBonusClub.xcworkspace -scheme TheBonusClub -configuration Release -archivePath build/TheBonusClub.xcarchive archive
+     ```
+4. **Upload to App Store Connect:**
+   - Distribute to App Store Connect / TestFlight via Xcode Organizer, Apple Transporter app, or Fastlane.
+   - Release to TestFlight for internal/external tester verification before submitting to App Review.
+   - Required store assets: App Store icon (1024×1024 PNG, no alpha/transparency), Screenshots for 6.7" (iPhone 15/16 Pro Max) and 6.5" displays, Privacy Policy URL, App Review demo credentials (test member account).
+
+> **Approval Guard:** Never submit or release builds to production tracks on Google Play or the App Store without explicit approval.
 
 ## 14. Open decisions
 
-1. Expo managed workflow or bare React Native CLI?
+1. Workflow: **Decided** — Bare React Native CLI.
 2. Navigation library (React Navigation is the default assumption).
 3. How a member's partner-side redemption is confirmed in the app, if at all.
+
+## 15. Commands
+
+- Install: `npm install && cd ios && pod install && cd ..`
+- Start Metro: `npm start`
+- Run Android (Debug): `npm run android`
+- Run iOS (Debug): `npm run ios`
+- Build Android Bundle (`.aab` for Play Store): `cd android && ./gradlew bundleRelease && cd ..`
+- Build iOS Archive (`.xcarchive` for App Store): `cd ios && xcodebuild -workspace TheBonusClub.xcworkspace -scheme TheBonusClub -configuration Release -archivePath build/TheBonusClub.xcarchive archive && cd ..`
+- Test: `npm test`
+- Lint and typecheck: `npm run lint && npm run typecheck`

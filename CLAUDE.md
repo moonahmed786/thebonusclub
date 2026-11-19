@@ -25,11 +25,11 @@ Anything outside these six needs a PRD change first. Do not add features "while 
 
 | Layer | Technology |
 |---|---|
-| Mobile | React Native via Expo or CLI (iOS and Android) |
-| API | Node.js REST, Express or NestJS (**undecided, see §8**), behind NGINX |
-| Relational data | PostgreSQL: users, plans, subscriptions, payments, partners, offers, vouchers |
-| Document data | MongoDB: activity logs, audit trails, voucher redemption events, partner attachments and metadata |
-| Cache and sessions | Redis: session tokens, partner list cache, voucher validity checks, rate limiting |
+| Mobile | React Native CLI (iOS and Android, bare workflow) |
+| API | Node.js REST, Express or NestJS (**undecided, see §8**), deployed as Vercel Serverless Functions |
+| Relational data | PostgreSQL (Managed: Neon / Supabase) with serverless connection pooling |
+| Document data | MongoDB (MongoDB Atlas cloud cluster): logs, audit trails, redemption events |
+| Cache and sessions | Redis (Upstash Redis / Vercel KV): session tokens, cache, rate limiting |
 | Push | Firebase Cloud Messaging (FCM) only |
 | API docs | Swagger / OpenAPI at `/api-docs` |
 | Hosting & Infrastructure | Hostinger KVM VPS (Ubuntu LTS) with Docker Compose & NGINX reverse proxy |
