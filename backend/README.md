@@ -33,7 +33,7 @@ npm run dev                   # http://localhost:3000/api/v1, docs at /api-docs
 | Unit tests | `npm test` |
 | Integration tests (needs `docker compose up -d`) | `npm run test:e2e` |
 | Lint / typecheck | `npm run lint && npm run typecheck` |
-| Migrate | `npm run migrate:up` |
+| Migrate | `npm run migrate:up` (production deploys also run it automatically via `scripts/vercel-build.mjs`) |
 | Deploy | `vercel` (preview) / `vercel --prod` (production) |
 
 ## API overview (`/api/v1`)
