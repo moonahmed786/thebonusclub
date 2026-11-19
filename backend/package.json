@@ -9,6 +9,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "build": "prisma generate && nest build",
+    "vercel-build": "node scripts/vercel-build.mjs",
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint \"{src,test,scripts,prisma}/**/*.ts\"",
