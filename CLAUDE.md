@@ -21,18 +21,37 @@ Scope is locked to the PRD's six modules:
 
 Anything outside these six needs a PRD change first. Do not add features "while we're here".
 
-## 2. Stack (from the PRD)
+## 2. Stack & Vercel Deployment
 
 | Layer | Technology |
 |---|---|
-| Mobile | React Native via Expo or CLI (iOS and Android) |
-| API | Node.js REST, Express or NestJS (**undecided, see §8**), behind NGINX |
-| Relational data | PostgreSQL: users, plans, subscriptions, payments, partners, offers, vouchers |
-| Document data | MongoDB: activity logs, audit trails, voucher redemption events, partner attachments and metadata |
-| Cache and sessions | Redis: session tokens, partner list cache, voucher validity checks, rate limiting |
+| Mobile | React Native CLI (iOS and Android, bare workflow) |
+| API | Node.js REST, Express or NestJS (**undecided, see §8**), deployed as Vercel Serverless Functions |
+| Relational data | PostgreSQL (Managed: Neon / Supabase) with serverless connection pooling |
+| Document data | MongoDB (MongoDB Atlas cloud cluster): logs, audit trails, redemption events |
+| Cache and sessions | Redis (Upstash Redis / Vercel KV): session tokens, cache, rate limiting |
 | Push | Firebase Cloud Messaging (FCM) only |
 | API docs | Swagger / OpenAPI at `/api-docs` |
-| Hosting | Hostinger VPS (KVM 8) recommended in the PRD; AWS is the alternative |
+| Hosting & Platform | Vercel (Serverless Compute & Global Edge Network) + Managed Cloud DBs |
+
+### Vercel Serverless Architecture & Ops Guidelines
+
+All backend API services run as **Vercel Serverless Functions** with cloud-managed data tiers:
+
+- **Routing & SSL:** Handled automatically by Vercel's global edge network (no NGINX). Zero-config SSL/TLS certificate management.
+- **Stateless Compute:** API endpoints execute ephemerally.
+  - No long-running background daemons or in-memory state.
+  - Keep deployment packages and dependencies lean to minimize cold-start latency.
+- **Connection Management & Pooling:**
+  - **PostgreSQL:** Ephemeral serverless executions can quickly exhaust standard Postgres connections. Must connect via a serverless connection pooler (e.g., Neon connection pooler or Supabase PgBouncer).
+  - **MongoDB:** Connect to MongoDB Atlas using a cached singleton connection reused across warm function invocations.
+  - **Redis:** Use Upstash Redis (or Vercel KV), designed for serverless environments with REST/HTTP client support or connection-pooled TCP.
+- **Scheduled Background Tasks:**
+  - Background maintenance (e.g., transitioning expired vouchers from `claimed` to `expired`) runs via **Vercel Cron Jobs** configured in `vercel.json`, calling a secured internal endpoint validated with a `CRON_SECRET` header.
+- **Environment & Secrets:**
+  - Managed securely in the Vercel Project Settings (or pulled locally via `vercel env pull`). Never commit `.env` files.
+- **Local Development:**
+  - Emulated locally using `vercel dev` or standard Node dev servers with `.env.local`.
 
 Do not add a new database, queue, or third-party service without asking. Each one needs a cost and ops review.
 
@@ -92,8 +111,8 @@ Do not add a new database, queue, or third-party service without asking. Each on
 
 ## 8. Open decisions (ask before assuming)
 
-1. Backend framework: Express or NestJS?
-2. Hosting: Hostinger VPS (PRD recommendation) or AWS?
+1. Backend framework: Express or NestJS? (Note: wrapped for Vercel serverless execution).
+2. Hosting: **Decided** — Vercel Serverless + Managed Cloud DBs (Neon/Supabase Postgres, MongoDB Atlas, Upstash Redis).
 3. Partner cashier redemption: how does a partner's cashier authenticate, if at all? The PRD does not say.
 4. Exact "near expiry" window for push alerts.
 5. Refund or cancellation handling for off-system payments.

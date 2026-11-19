@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment and Secrets (Never commit secrets)
+.env
+.env.*
+!.env.example
+!.env.test
+*.pem
+*.key
+*.p12
+firebase-service-account*.json
+
+# Vercel & Build Artifacts
+.vercel/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Logs & Temporary Files
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test Coverage & Tooling Cache
+coverage/
+.nyc_output/
+.cache/
+.eslintcache
+
+# OS & Editor
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
