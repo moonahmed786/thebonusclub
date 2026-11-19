@@ -25,14 +25,18 @@ async function main(): Promise<void> {
       update: {},
     });
 
-    const monthlyPrice = process.env.SEED_MONTHLY_PLAN_PRICE_CENTS;
-    if (monthlyPrice) {
+    const monthlyPriceRaw = process.env.SEED_MONTHLY_PLAN_PRICE_CENTS?.trim();
+    const monthlyPrice = monthlyPriceRaw ? Number(monthlyPriceRaw) : undefined;
+    if (monthlyPrice !== undefined && (!Number.isInteger(monthlyPrice) || monthlyPrice <= 0)) {
+      throw new Error('SEED_MONTHLY_PLAN_PRICE_CENTS must be a whole number of cents, e.g. 999 for $9.99');
+    }
+    if (monthlyPrice !== undefined) {
       await prisma.plan.upsert({
         where: { code: 'MONTHLY' },
         create: {
           code: 'MONTHLY',
           name: 'Monthly membership',
-          priceCents: Number(monthlyPrice),
+          priceCents: monthlyPrice,
           registrationFeeCents: 2000,
           durationMonths: 1,
         },
