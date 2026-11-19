@@ -33,7 +33,7 @@ The PRD defines six modules:
 
 ## Status
 
-Early setup. Project rules and the PRD are in place; application code has not been scaffolded yet. Hosting is decided on Vercel Serverless with managed cloud databases. Still undecided: Express or NestJS for the API.
+Early setup. Project rules and the PRD are in place; application code has not been scaffolded yet. Hosting is decided on a Hostinger KVM VPS (Docker Compose & NGINX). Still undecided: Express or NestJS for the API.
 
 ## Contributing
 
