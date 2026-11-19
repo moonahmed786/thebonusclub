@@ -58,5 +58,5 @@ Partner cashiers authenticate with a per-partner API key in the `X-Partner-Key` 
 - **Voucher codes** are 12 characters from a 32-symbol alphabet (`crypto.randomInt`). Only a SHA-256 hash and the last 4 characters are stored; the full code is returned once, at claim time.
 - **Claiming** locks the member row inside a transaction, so parallel claims cannot exceed `VOUCHER_CLAIM_LIMIT_PER_OFFER`.
 - **Redemption** is a single conditional `UPDATE ... WHERE status = 'CLAIMED'`; of two simultaneous redemptions exactly one succeeds (covered by an e2e test).
-- **Expiry** runs every 15 minutes via Vercel Cron and is safe to run twice.
+- **Expiry** runs daily via Vercel Cron (Hobby plan limit; the API already treats past-expiry vouchers as expired) and is safe to run twice.
 - **Audit events** go to MongoDB after the Postgres commit; push notifications are sent after commit and never roll anything back.
