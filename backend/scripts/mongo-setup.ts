@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { MongoClient } from 'mongodb';
+import { MongoClient, MongoServerError } from 'mongodb';
 
 // Creates MongoDB collections with JSON-schema validators and indexes. Safe to re-run.
 const AUDIT_VALIDATOR = {
@@ -26,11 +26,23 @@ async function main(): Promise<void> {
   const client = new MongoClient(uri);
   try {
     const db = client.db(process.env.MONGODB_DB ?? 'bonusclub');
-    const exists = await db.listCollections({ name: 'audit_events' }).hasNext();
-    if (exists) {
-      await db.command({ collMod: 'audit_events', validator: AUDIT_VALIDATOR, validationLevel: 'strict' });
-    } else {
+    const existing = await db.listCollections({ name: 'audit_events' }).next();
+    if (!existing) {
       await db.createCollection('audit_events', { validator: AUDIT_VALIDATOR, validationLevel: 'strict' });
+    } else {
+      const current = (existing as { options?: { validator?: unknown } }).options?.validator;
+      if (JSON.stringify(current) !== JSON.stringify(AUDIT_VALIDATOR)) {
+        try {
+          await db.command({ collMod: 'audit_events', validator: AUDIT_VALIDATOR, validationLevel: 'strict' });
+        } catch (err) {
+          // collMod needs the dbAdmin role; an app user with readWrite cannot update validators.
+          if (err instanceof MongoServerError && err.code === 13) {
+            process.stderr.write('WARNING: audit_events validator is out of date and this user cannot update it (needs dbAdmin)\n');
+          } else {
+            throw err;
+          }
+        }
+      }
     }
     const audit = db.collection('audit_events');
     await audit.createIndex({ subjectType: 1, subjectId: 1, at: -1 });
