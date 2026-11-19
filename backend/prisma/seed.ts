@@ -52,8 +52,10 @@ async function main(): Promise<void> {
 
     const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
     const adminPassword = process.env.SEED_ADMIN_PASSWORD;
-    if (adminEmail && adminPassword) {
-      if (adminPassword.length < 12) throw new Error('SEED_ADMIN_PASSWORD must be at least 12 characters');
+    if (adminEmail && adminPassword && adminPassword.length < 12) {
+      // Do not block a deploy over the bootstrap admin; plans and categories are already seeded.
+      process.stderr.write('WARNING: SEED_ADMIN_PASSWORD must be at least 12 characters; admin user not created\n');
+    } else if (adminEmail && adminPassword) {
       await prisma.user.upsert({
         where: { email: adminEmail },
         create: { email: adminEmail, passwordHash: await bcrypt.hash(adminPassword, 12), role: 'ADMIN', status: 'ACTIVE' },
