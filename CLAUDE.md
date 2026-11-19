@@ -21,7 +21,7 @@ Scope is locked to the PRD's six modules:
 
 Anything outside these six needs a PRD change first. Do not add features "while we're here".
 
-## 2. Stack (from the PRD)
+## 2. Stack & Hostinger Deployment
 
 | Layer | Technology |
 |---|---|
@@ -32,7 +32,25 @@ Anything outside these six needs a PRD change first. Do not add features "while 
 | Cache and sessions | Redis: session tokens, partner list cache, voucher validity checks, rate limiting |
 | Push | Firebase Cloud Messaging (FCM) only |
 | API docs | Swagger / OpenAPI at `/api-docs` |
-| Hosting | Hostinger VPS (KVM 8) recommended in the PRD; AWS is the alternative |
+| Hosting & Infrastructure | Hostinger KVM VPS (Ubuntu LTS) with Docker Compose & NGINX reverse proxy |
+
+### Hostinger VPS Architecture & Ops Guidelines
+
+All backend components run on a single Hostinger KVM VPS containerized with **Docker & Docker Compose**:
+
+- **Reverse Proxy & SSL:** NGINX handles SSL termination (Let's Encrypt / Certbot with automated renewal), rate limiting buffers, and forwards `/api` and `/api-docs` to the Node.js API container.
+- **Service Isolation & Networking:**
+  - Only ports `80` (HTTP), `443` (HTTPS), and `SSH` are open via UFW.
+  - PostgreSQL (`5432`), MongoDB (`27017`), and Redis (`6379`) bind strictly to the internal Docker network, never exposed publicly.
+- **Process & Lifecycle Management:**
+  - Containers run with `restart: unless-stopped`.
+  - Memory and CPU limits defined in `docker-compose.yml` to prevent any single service causing Out-Of-Memory (OOM) kernel kills on the VPS.
+  - Docker log rotation enabled (`json-file`, `max-size: 10m`, `max-file: 3`) to avoid exhausting VPS disk space.
+- **Data Persistence & Backups:**
+  - Persistent Docker named volumes for PostgreSQL data, MongoDB data, and Redis AOF/RDB dumps.
+  - Automated backup scripts (cron): daily `pg_dump` and `mongodump` rotated and compressed, supplemented by Hostinger automated VPS snapshots.
+- **Environment & Secrets:**
+  - Production secrets stored in a server-side `.env` (`chmod 600`) loaded by Docker Compose; never committed to git.
 
 Do not add a new database, queue, or third-party service without asking. Each one needs a cost and ops review.
 
@@ -93,7 +111,7 @@ Do not add a new database, queue, or third-party service without asking. Each on
 ## 8. Open decisions (ask before assuming)
 
 1. Backend framework: Express or NestJS?
-2. Hosting: Hostinger VPS (PRD recommendation) or AWS?
+2. Hosting: **Decided** — Hostinger KVM VPS (Docker Compose + NGINX reverse proxy).
 3. Partner cashier redemption: how does a partner's cashier authenticate, if at all? The PRD does not say.
 4. Exact "near expiry" window for push alerts.
 5. Refund or cancellation handling for off-system payments.
