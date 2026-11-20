@@ -68,3 +68,15 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 *.swp
+
+# Added from React Native template
+.cxx/
+.kotlin/
+*.jsbundle
+/vendor/bundle/
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots
+**/fastlane/test_output
+
+# Generated API types are committed (src/shared/api/schema.d.ts); nothing to ignore there.
