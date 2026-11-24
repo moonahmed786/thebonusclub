@@ -1,5 +1,5 @@
 # Local development and integration-test dependencies.
-# Production uses Neon/Supabase Postgres, MongoDB Atlas and Upstash Redis.
+# Production uses Neon/Supabase Postgres, and MongoDB Atlas.
 services:
   postgres:
     image: postgres:17
@@ -8,9 +8,6 @@ services:
       POSTGRES_PASSWORD: bonusclub
       POSTGRES_DB: bonusclub
     ports: ["5432:5432"]
-  redis:
-    image: redis:7
-    ports: ["6380:6379"]
   mongo:
     image: mongo:8
     ports: ["27017:27017"]

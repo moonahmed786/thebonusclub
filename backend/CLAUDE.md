@@ -34,7 +34,6 @@ backend/
       admin/         # admin-only endpoints
     shared/
       db/            # postgres (neon/supabase) + mongo (atlas) clients, migrations
-      cache/         # redis client (upstash), helpers
       auth/          # jwt verify, role guards
       errors/        # error classes and mapper
       logger/
@@ -69,9 +68,9 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
 ## 5. Authentication and sessions
 
 - Email + password only. Reject any other sign-up method.
-- Login returns a short-lived access JWT and a refresh token. The refresh token is stored in Redis, keyed by session ID, and revoked on logout or password change.
-- Every member request checks the JWT signature, expiry, and that the session still exists in Redis.
-- If Redis is down, authentication must fail closed (deny), never open.
+- Login returns a short-lived access JWT and a refresh token. The refresh token is stored hashed in the Postgres `sessions` table, keyed by session ID, and revoked on logout or password change.
+- Every member request checks the JWT signature, expiry, and that the session still exists (and has not expired) in Postgres.
+- If the session store is unreachable, authentication must fail closed (deny), never open.
 - Admin role is a claim checked by a guard. Admin endpoints must not accept member tokens.
 - Password reset and email verification (if added) need their own tokens with short expiry and single use. Ask before adding.
 
@@ -97,7 +96,7 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
   - Record the redemption (partner, time, amount if given) in Postgres and an event in Mongo.
   - A redemption is never reversed silently. Corrections are a separate, audited admin action.
 - Expiry: a scheduled job moves `claimed` vouchers past their expiry to `expired`. On Vercel, this is triggered via Vercel Cron Jobs (`vercel.json`) calling a secured endpoint (`/api/v1/cron/expire-vouchers`) protected with a `CRON_SECRET` header. The job must be safe to run twice.
-- Redis may cache "is this voucher valid" for speed, but a redemption always checks Postgres. Never redeem based on cache alone.
+- A redemption always checks Postgres. Never redeem based on a cached value.
 
 ## 8. Push notifications (Module 5)
 
@@ -114,7 +113,7 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
 
 - Postgres (Neon / Supabase): migrations only. Never change schema by hand. Each migration is reversible or marked irreversible in its header. Must connect through a serverless connection pooler to prevent exhausting connections during concurrent serverless invocations.
 - Mongo (MongoDB Atlas): define a schema or validator for each collection. No unbounded documents; cap arrays. Cache client singleton outside handler to reuse connections across warm serverless executions.
-- Redis (Upstash / Vercel KV): REST/HTTP or connection-pooled client suitable for ephemeral execution.
+- No Redis. Sessions and rate-limit counters are Postgres tables; expired rows are deleted by the daily `/api/v1/cron/purge-expired` job.
 - Every query that reads user data filters by member or admin scope. Never trust an ID from the request alone.
 
 ## 11. Logging and audit
@@ -126,7 +125,7 @@ Each module owns its routes, service, repository, schemas, and tests. Modules ca
 ## 12. Testing
 
 - Unit tests for business rules in §4 and §7 (claim limits, atomic redemption, status transitions, idempotent activation).
-- Integration tests against real Postgres and Redis (Docker), not mocks, for voucher claim and redeem.
+- Integration tests against real Postgres and MongoDB (Docker), not mocks, for voucher claim and redeem.
 - A concurrency test for redemption: two parallel redeem calls, exactly one succeeds.
 - Every endpoint has a Swagger-matching contract test.
 

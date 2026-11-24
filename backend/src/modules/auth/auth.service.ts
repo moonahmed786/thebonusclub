@@ -90,14 +90,16 @@ export class AuthService {
     const session = await this.sessions.get(sessionId);
     if (!session) throw invalid();
 
-    if (!safeEqualHex(sha256(secret), session.refreshHash)) {
-      // A rotated-out token was replayed: treat the session as stolen and end it.
+    const presentedHash = sha256(secret);
+    const newSecret = randomToken();
+    const rotated =
+      safeEqualHex(presentedHash, session.refreshHash) &&
+      (await this.sessions.rotate(sessionId, session.refreshHash, sha256(newSecret)));
+    if (!rotated) {
+      // A rotated-out token was replayed (or raced a rotation): treat the session as stolen and end it.
       await this.sessions.revoke(sessionId, session.userId);
       throw invalid();
     }
-
-    const newSecret = randomToken();
-    await this.sessions.save(sessionId, { ...session, refreshHash: sha256(newSecret) });
     return this.buildTokens(session.userId, sessionId, session.role, newSecret);
   }
 
@@ -108,7 +110,7 @@ export class AuthService {
   private async startSession(userId: string, role: 'MEMBER' | 'ADMIN'): Promise<TokensDto> {
     const sessionId = randomUUID();
     const secret = randomToken();
-    await this.sessions.save(sessionId, { userId, role, refreshHash: sha256(secret) });
+    await this.sessions.create(sessionId, { userId, role, refreshHash: sha256(secret) });
     return this.buildTokens(userId, sessionId, role, secret);
   }
 

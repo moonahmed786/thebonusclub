@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { APP_CONFIG, AppConfig } from '../../config/app-config';
+import { SessionStore } from '../../shared/auth/session.store';
 import { PrismaService } from '../../shared/db/prisma.service';
+import { purgeExpiredRateLimits } from '../../shared/rate-limit/rate-limit.guard';
 import { NotificationsService } from '../notifications/notifications.service';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -11,6 +13,7 @@ export class CronService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly sessions: SessionStore,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
@@ -42,5 +45,13 @@ export class CronService {
       alerted += 1;
     }
     return { alerted };
+  }
+
+  /** Deletes expired sessions and closed rate-limit windows. Safe to run twice. */
+  async purgeExpired(): Promise<{ sessions: number; rateLimits: number }> {
+    const now = new Date();
+    const sessions = await this.sessions.purgeExpired(now);
+    const rateLimits = await purgeExpiredRateLimits(this.prisma, now);
+    return { sessions, rateLimits };
   }
 }

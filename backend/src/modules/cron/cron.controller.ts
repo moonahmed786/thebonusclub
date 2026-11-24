@@ -19,6 +19,11 @@ export class CronController {
     return this.vouchers.expireDue();
   }
 
+  @Get('purge-expired')
+  purgeExpired(): Promise<{ sessions: number; rateLimits: number }> {
+    return this.cron.purgeExpired();
+  }
+
   @Get('membership-expiry-alerts')
   membershipExpiryAlerts(): Promise<{ alerted: number }> {
     return this.cron.sendMembershipExpiryAlerts();

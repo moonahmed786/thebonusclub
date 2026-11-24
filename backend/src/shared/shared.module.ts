@@ -5,7 +5,6 @@ import { AuditService } from './audit/audit.service';
 import { AdminAuthGuard, AnyUserAuthGuard, MemberAuthGuard } from './auth/jwt-auth.guard';
 import { PartnerApiKeyGuard } from './auth/partner-api-key.guard';
 import { SessionStore } from './auth/session.store';
-import { RedisService } from './cache/redis.service';
 import { MongoService } from './db/mongo.service';
 import { PrismaService } from './db/prisma.service';
 import { AppLogger } from './logger/app-logger';
@@ -27,7 +26,6 @@ const config = loadConfig();
     AppLogger,
     PrismaService,
     MongoService,
-    RedisService,
     AuditService,
     SessionStore,
     MemberAuthGuard,
@@ -42,7 +40,6 @@ const config = loadConfig();
     AppLogger,
     PrismaService,
     MongoService,
-    RedisService,
     AuditService,
     SessionStore,
     MemberAuthGuard,

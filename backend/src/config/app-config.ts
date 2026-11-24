@@ -5,7 +5,6 @@ export interface AppConfig {
   databaseUrl: string;
   mongoUri: string;
   mongoDb: string;
-  redisUrl: string;
   jwtSecret: string;
   accessTokenTtlSeconds: number;
   refreshTokenTtlSeconds: number;
@@ -68,7 +67,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseUrl: required(env, 'DATABASE_URL'),
     mongoUri: required(env, 'MONGODB_URI'),
     mongoDb: env.MONGODB_DB ?? 'bonusclub',
-    redisUrl: required(env, 'REDIS_URL'),
     jwtSecret,
     accessTokenTtlSeconds: int(env, 'ACCESS_TOKEN_TTL_SECONDS', 900),
     refreshTokenTtlSeconds: int(env, 'REFRESH_TOKEN_TTL_SECONDS', 60 * 60 * 24 * 30),

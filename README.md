@@ -27,7 +27,7 @@ The PRD defines six modules:
 - **API:** Node.js REST deployed as Vercel Serverless Functions (TypeScript)
 - **PostgreSQL:** Neon / Supabase with serverless connection pooling (users, plans, subscriptions, payments, partners, offers, vouchers)
 - **MongoDB:** MongoDB Atlas (activity logs, audit trails, redemption events)
-- **Redis:** Upstash Redis / Vercel KV (sessions, caching, rate limiting)
+- **Sessions & rate limiting:** PostgreSQL tables (no Redis)
 - **Push:** Firebase Cloud Messaging
 - **Hosting:** Vercel (Edge Network + Serverless Functions)
 
