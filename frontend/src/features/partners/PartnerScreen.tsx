@@ -5,75 +5,99 @@ import type { PartnersStackParams } from '../../app/navigation-types';
 import { Card } from '../../shared/components/Card';
 import { LogoImage } from '../../shared/components/LogoImage';
 import { Screen } from '../../shared/components/Screen';
+import { InfoRow, SectionTitle } from '../../shared/components/Section';
 import { EmptyView, ErrorView, LoadingView } from '../../shared/components/StateViews';
 import { useTheme } from '../../shared/theme/theme';
+import { formatDate } from '../../shared/utils/format';
 import { usePartner } from './partners-api';
 
 type Props = NativeStackScreenProps<PartnersStackParams, 'Partner'>;
 
 export function PartnerScreen({ route, navigation }: Props) {
   const theme = useTheme();
+  const { colors } = theme;
   const partner = usePartner(route.params.id);
 
   if (partner.isPending) return <LoadingView />;
   if (partner.isError) return <ErrorView error={partner.error} onRetry={() => partner.refetch()} />;
   const p = partner.data;
 
-  const contact = (label: string, value: string | null, url?: string) =>
+  const contact = (glyph: string, label: string, value: string | null, url?: string) =>
     value ? (
-      <Pressable accessibilityRole={url ? 'link' : 'text'} disabled={!url} onPress={() => url && Linking.openURL(url)} style={[styles.contact, { minHeight: theme.minTapSize }]}>
-        <Text style={{ color: theme.colors.textMuted }}>{label}</Text>
-        <Text style={[styles.contactValue, { color: url ? theme.colors.primary : theme.colors.text }]}>{value}</Text>
+      <Pressable key={label} accessibilityRole={url ? 'link' : 'text'} disabled={!url} onPress={() => url && Linking.openURL(url)}>
+        <InfoRow glyph={glyph} label={label} value={value} valueColor={url ? colors.primaryBright : undefined} />
       </Pressable>
     ) : null;
+  const contacts = [
+    contact('⌖', 'Address', p.address),
+    contact('✆', 'Phone', p.phone, p.phone ? `tel:${p.phone.replace(/[^+0-9]/g, '')}` : undefined),
+    contact('✉', 'Email', p.email, p.email ? `mailto:${p.email}` : undefined),
+  ].filter(Boolean);
 
   return (
     <Screen refreshing={partner.isRefetching} onRefresh={() => partner.refetch()}>
-      <View style={styles.header}>
-        <LogoImage uri={p.logoUrl} name={p.name} size={64} />
-        <View style={styles.headerText}>
-          <Text style={[styles.name, { color: theme.colors.text }]}>{p.name}</Text>
-          <Text style={{ color: theme.colors.textMuted }}>{p.category.name}</Text>
-        </View>
+      <View style={styles.hero}>
+        <LogoImage uri={p.logoUrl} name={p.name} size={84} />
+        <Text style={[theme.type.overline, styles.category, { color: colors.primary }]}>{p.category.name}</Text>
+        <Text accessibilityRole="header" style={[theme.type.title, styles.name, { color: colors.text }]}>
+          {p.name}
+        </Text>
+        {p.description ? <Text style={[theme.type.body, styles.description, { color: colors.textMuted }]}>{p.description}</Text> : null}
       </View>
-      {p.description ? <Text style={[styles.body, { color: theme.colors.text }]}>{p.description}</Text> : null}
 
-      <Card>
-        <Text style={[styles.section, { color: theme.colors.text }]}>How to redeem</Text>
-        <Text style={{ color: theme.colors.text }}>{p.redemptionMethod}</Text>
-      </Card>
-
-      <Card>
-        <Text style={[styles.section, { color: theme.colors.text }]}>Contact</Text>
-        {contact('Address', p.address)}
-        {contact('Phone', p.phone, p.phone ? `tel:${p.phone.replace(/[^+0-9]/g, '')}` : undefined)}
-        {contact('Email', p.email, p.email ? `mailto:${p.email}` : undefined)}
-      </Card>
-
-      <Text style={[styles.section, { color: theme.colors.text }]}>Offers</Text>
+      <SectionTitle title="Offers" note={p.offers.length ? `${p.offers.length} live` : undefined} />
       {p.offers.length === 0 ? (
-        <EmptyView title="No live offers right now" />
+        <EmptyView glyph="✦" title="No live offers right now" message="Check back soon." />
       ) : (
         p.offers.map((offer) => (
-          <Pressable key={offer.id} accessibilityRole="button" onPress={() => navigation.navigate('Offer', { id: offer.id, partnerName: p.name, redemptionMethod: p.redemptionMethod })}>
-            <Card>
-              <Text style={[styles.offerTitle, { color: theme.colors.text }]}>{offer.title}</Text>
-              {offer.terms ? <Text style={{ color: theme.colors.textMuted }} numberOfLines={2}>{offer.terms}</Text> : null}
-            </Card>
+          <Pressable
+            key={offer.id}
+            accessibilityRole="button"
+            accessibilityHint="Opens the offer so you can claim a voucher"
+            onPress={() => navigation.navigate('Offer', { id: offer.id, partnerName: p.name, redemptionMethod: p.redemptionMethod })}>
+            {({ pressed }) => (
+              <Card accent style={pressed ? { backgroundColor: colors.surfaceRaised } : undefined}>
+                <View style={styles.offerRow}>
+                  <View style={styles.offerText}>
+                    <Text style={[styles.offerTitle, { color: colors.text }]}>{offer.title}</Text>
+                    {offer.description ? (
+                      <Text style={[theme.type.caption, { color: colors.textMuted }]} numberOfLines={2}>
+                        {offer.description}
+                      </Text>
+                    ) : null}
+                    {offer.endsAt ? <Text style={[theme.type.caption, styles.ends, { color: colors.textFaint }]}>Ends {formatDate(offer.endsAt)}</Text> : null}
+                  </View>
+                  <Text style={[styles.cta, { color: colors.primary }]}>View ›</Text>
+                </View>
+              </Card>
+            )}
           </Pressable>
         ))
       )}
+
+      <SectionTitle title="How to redeem" />
+      <Card>
+        <Text style={[theme.type.body, { color: colors.text }]}>{p.redemptionMethod}</Text>
+      </Card>
+
+      {contacts.length ? (
+        <>
+          <SectionTitle title="Contact" />
+          <Card>{contacts}</Card>
+        </>
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 },
-  headerText: { flex: 1 },
-  name: { fontSize: 22, fontWeight: '800' },
-  body: { fontSize: 15, marginBottom: 16 },
-  section: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
-  offerTitle: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  contact: { justifyContent: 'center' },
-  contactValue: { fontSize: 15 },
+  hero: { alignItems: 'center', marginBottom: 20 },
+  category: { marginTop: 16 },
+  name: { textAlign: 'center', marginTop: 6 },
+  description: { textAlign: 'center', marginTop: 10 },
+  offerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  offerText: { flex: 1 },
+  offerTitle: { fontSize: 17, fontWeight: '700', marginBottom: 4 },
+  ends: { marginTop: 6 },
+  cta: { fontSize: 14, fontWeight: '700' },
 });

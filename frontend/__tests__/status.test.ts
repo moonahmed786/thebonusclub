@@ -1,7 +1,7 @@
 import { membershipBadge } from '../src/features/membership/membership-status';
 import { targetFromData } from '../src/features/notifications/push';
 import { filterPartnersByCategory } from '../src/features/partners/partner-filter';
-import { isCodeUsable, voucherBadge } from '../src/features/vouchers/voucher-status';
+import { groupVouchers, isCodeUsable, voucherBadge } from '../src/features/vouchers/voucher-status';
 import type { PartnerSummary } from '../src/shared/api/types';
 
 describe('status mapping', () => {
@@ -50,5 +50,24 @@ describe('notification deep links', () => {
     expect(targetFromData({ kind: 'membership_expiring', screen: 'card' })).toEqual({ screen: 'card' });
     expect(targetFromData({})).toBeNull();
     expect(targetFromData(undefined)).toBeNull();
+  });
+});
+
+describe('groupVouchers', () => {
+  it('puts claimed vouchers under "Ready to use" and the rest under "Past"', () => {
+    const groups = groupVouchers([
+      { id: 'a', status: 'redeemed' as const },
+      { id: 'b', status: 'claimed' as const },
+      { id: 'c', status: 'expired' as const },
+    ]);
+    expect(groups.map((g) => [g.title, g.data.map((v) => v.id)])).toEqual([
+      ['Ready to use', ['b']],
+      ['Past', ['a', 'c']],
+    ]);
+  });
+
+  it('leaves out empty groups', () => {
+    expect(groupVouchers([{ status: 'claimed' as const }]).map((g) => g.title)).toEqual(['Ready to use']);
+    expect(groupVouchers([])).toEqual([]);
   });
 });

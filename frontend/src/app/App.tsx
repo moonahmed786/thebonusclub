@@ -1,19 +1,32 @@
-import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
+import { DarkTheme, NavigationContainer, Theme as NavigationTheme, createNavigationContainerRef } from '@react-navigation/native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import React, { useEffect, useRef } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from '../features/auth/AuthProvider';
 import { listenForNotificationOpens, PushTarget } from '../features/notifications/push';
 import { sessionStore } from '../shared/api/session';
 import { queryClient } from '../shared/queryClient';
+import { brandTheme } from '../shared/theme/theme';
 import type { MainTabParams } from './navigation-types';
 import { RootNavigator } from './RootNavigator';
 
 const navigationRef = createNavigationContainerRef<MainTabParams>();
 
+const navigationTheme: NavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: brandTheme.colors.primary,
+    background: brandTheme.colors.background,
+    card: brandTheme.colors.background,
+    text: brandTheme.colors.text,
+    border: brandTheme.colors.border,
+    notification: brandTheme.colors.primary,
+  },
+};
+
 export function App() {
-  const scheme = useColorScheme();
   const pending = useRef<PushTarget | null>(null);
 
   const openTarget = (target: PushTarget) => {
@@ -36,10 +49,10 @@ export function App() {
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+          <StatusBar barStyle="light-content" />
           <NavigationContainer
             ref={navigationRef}
-            theme={scheme === 'dark' ? DarkTheme : DefaultTheme}
+            theme={navigationTheme}
             onStateChange={() => pending.current && openTarget(pending.current)}>
             <RootNavigator />
           </NavigationContainer>
