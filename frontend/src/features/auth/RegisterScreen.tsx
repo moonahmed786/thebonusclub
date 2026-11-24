@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
+import { BrandMark } from '../../shared/components/BrandMark';
 import { Button } from '../../shared/components/Button';
 import { Screen } from '../../shared/components/Screen';
 import { InlineError } from '../../shared/components/StateViews';
@@ -11,6 +12,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function RegisterScreen() {
   const theme = useTheme();
+  const { colors } = theme;
   const { signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,19 +38,28 @@ export function RegisterScreen() {
   };
 
   return (
-    <Screen>
-      <Text style={[styles.intro, { color: theme.colors.textMuted }]}>
-        Create your account with email and password. You'll add your details and choose a plan next.
-      </Text>
-      <TextField label="Email" value={email} onChangeText={setEmail} error={emailError} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
-      <TextField label="Password" value={password} onChangeText={setPassword} error={passwordError} secureTextEntry autoComplete="new-password" textContentType="newPassword" />
-      <TextField label="Confirm password" value={confirm} onChangeText={setConfirm} error={confirmError} secureTextEntry textContentType="newPassword" />
-      <InlineError error={error} />
-      <Button title="Create account" onPress={submit} loading={busy} disabled={!canSubmit} />
-    </Screen>
+    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 96 : 0}>
+      <Screen>
+        <View style={styles.hero}>
+          <BrandMark size={56} />
+          <Text style={[theme.type.title, styles.title, { color: colors.text }]}>Join The Bonus Club</Text>
+          <Text style={[theme.type.body, styles.intro, { color: colors.textMuted }]}>
+            Create your account with email and password. You'll add your details and choose a plan next.
+          </Text>
+        </View>
+        <TextField label="Email" value={email} onChangeText={setEmail} error={emailError} autoCapitalize="none" autoComplete="email" keyboardType="email-address" textContentType="emailAddress" />
+        <TextField label="Password" value={password} onChangeText={setPassword} error={passwordError} secureTextEntry autoComplete="new-password" textContentType="newPassword" placeholder="8 to 72 characters" />
+        <TextField label="Confirm password" value={confirm} onChangeText={setConfirm} error={confirmError} secureTextEntry textContentType="newPassword" />
+        <InlineError error={error} />
+        <Button title="Create account" onPress={submit} loading={busy} disabled={!canSubmit} />
+      </Screen>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  intro: { fontSize: 15, marginBottom: 20 },
+  fill: { flex: 1 },
+  hero: { alignItems: 'center', marginBottom: 28 },
+  title: { marginTop: 16 },
+  intro: { textAlign: 'center', marginTop: 8 },
 });

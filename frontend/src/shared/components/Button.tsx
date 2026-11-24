@@ -5,7 +5,8 @@ import { useTheme } from '../theme/theme';
 interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  /** primary: solid gold. secondary: gold outline. ghost: gold text only (for header and inline actions). */
+  variant?: 'primary' | 'secondary' | 'ghost';
   loading?: boolean;
   disabled?: boolean;
   accessibilityHint?: string;
@@ -14,10 +15,14 @@ interface ButtonProps {
 
 export function Button({ title, onPress, variant = 'primary', loading = false, disabled = false, accessibilityHint, testID }: ButtonProps) {
   const theme = useTheme();
+  const { colors } = theme;
   const isDisabled = disabled || loading;
   const primary = variant === 'primary';
-  const background = primary ? (isDisabled ? theme.colors.disabled : theme.colors.primary) : 'transparent';
-  const color = primary ? theme.colors.onPrimary : isDisabled ? theme.colors.disabled : theme.colors.primary;
+  const ghost = variant === 'ghost';
+
+  const background = primary ? (isDisabled ? colors.disabled : colors.primary) : 'transparent';
+  const borderColor = primary ? background : ghost ? 'transparent' : isDisabled ? colors.disabled : colors.primary;
+  const color = primary ? (isDisabled ? colors.textMuted : colors.onPrimary) : isDisabled ? colors.disabled : colors.primary;
 
   return (
     <Pressable
@@ -27,22 +32,32 @@ export function Button({ title, onPress, variant = 'primary', loading = false, d
       accessibilityHint={accessibilityHint}
       disabled={isDisabled}
       onPress={onPress}
+      hitSlop={ghost ? 8 : undefined}
       style={({ pressed }) => [
         styles.button,
+        ghost ? styles.ghost : styles.solid,
         {
-          minHeight: theme.minTapSize,
+          minHeight: ghost ? theme.minTapSize : 54,
           borderRadius: theme.radius,
           backgroundColor: background,
-          borderColor: primary ? background : theme.colors.primary,
-          opacity: pressed ? 0.8 : 1,
+          borderColor,
+          opacity: pressed ? 0.78 : 1,
+          transform: [{ scale: pressed && !ghost ? 0.985 : 1 }],
         },
       ]}>
-      {loading ? <ActivityIndicator color={color} /> : <Text style={[styles.label, { color }]}>{title}</Text>}
+      {loading ? (
+        <ActivityIndicator color={color} />
+      ) : (
+        <Text style={[styles.label, ghost && styles.ghostLabel, { color }]}>{title}</Text>
+      )}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, paddingVertical: 12, borderWidth: 1 },
-  label: { fontSize: 16, fontWeight: '600' },
+  button: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5 },
+  solid: { paddingHorizontal: 20, paddingVertical: 14 },
+  ghost: { paddingHorizontal: 8 },
+  label: { fontSize: 16, fontWeight: '700', letterSpacing: 0.3 },
+  ghostLabel: { fontSize: 15, fontWeight: '600' },
 });

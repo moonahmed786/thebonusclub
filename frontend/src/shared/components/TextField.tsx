@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import { useTheme } from '../theme/theme';
 
@@ -7,22 +7,33 @@ interface TextFieldProps extends TextInputProps {
   error?: string;
 }
 
-export function TextField({ label, error, style, ...input }: TextFieldProps) {
+export function TextField({ label, error, style, onFocus, onBlur, ...input }: TextFieldProps) {
   const theme = useTheme();
+  const [focused, setFocused] = useState(false);
+  const borderColor = error ? theme.colors.danger : focused ? theme.colors.primary : theme.colors.border;
   return (
     <View style={styles.wrapper}>
-      <Text style={[styles.label, { color: theme.colors.text }]}>{label}</Text>
+      <Text style={[theme.type.overline, styles.label, { color: focused ? theme.colors.primary : theme.colors.textMuted }]}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor={theme.colors.textMuted}
+        placeholderTextColor={theme.colors.textFaint}
+        selectionColor={theme.colors.primary}
+        keyboardAppearance="dark"
+        onFocus={(e) => {
+          setFocused(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setFocused(false);
+          onBlur?.(e);
+        }}
         style={[
           styles.input,
           {
-            minHeight: theme.minTapSize,
-            borderRadius: theme.radius,
+            borderRadius: theme.radiusSm + 2,
             color: theme.colors.text,
-            backgroundColor: theme.colors.surface,
-            borderColor: error ? theme.colors.danger : theme.colors.border,
+            backgroundColor: theme.colors.surfaceRaised,
+            borderColor,
           },
           style,
         ]}
@@ -34,8 +45,8 @@ export function TextField({ label, error, style, ...input }: TextFieldProps) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { marginBottom: 16 },
-  label: { fontSize: 14, fontWeight: '600', marginBottom: 6 },
-  input: { borderWidth: 1, paddingHorizontal: 12, fontSize: 16 },
-  error: { fontSize: 13, marginTop: 4 },
+  wrapper: { marginBottom: 18 },
+  label: { marginBottom: 8 },
+  input: { minHeight: 52, borderWidth: 1.5, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  error: { fontSize: 13, marginTop: 6 },
 });

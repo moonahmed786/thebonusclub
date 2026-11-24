@@ -1,14 +1,20 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../shared/components/Button';
 import { Screen } from '../../shared/components/Screen';
 import { EmptyView, ErrorView, InlineError, LoadingView } from '../../shared/components/StateViews';
-import { useTheme } from '../../shared/theme/theme';
+import { useTheme, withAlpha } from '../../shared/theme/theme';
 import { formatMoney } from '../../shared/utils/format';
 import { usePlans, useSelectPlan } from '../membership/membership-api';
+import { StepIndicator } from './StepIndicator';
+
+function period(months: number): string {
+  return months === 12 ? 'year' : months === 1 ? 'month' : `${months} months`;
+}
 
 export function ChoosePlanScreen() {
   const theme = useTheme();
+  const { colors } = theme;
   const plans = usePlans();
   const select = useSelectPlan();
   const [chosen, setChosen] = useState<string | null>(null);
@@ -18,9 +24,19 @@ export function ChoosePlanScreen() {
   if (plans.data.length === 0) return <EmptyView title="No plans available" message="Please check back soon." />;
 
   return (
-    <Screen>
-      <Text style={[styles.title, { color: theme.colors.text }]}>Choose your membership</Text>
-      <Text style={[styles.help, { color: theme.colors.textMuted }]}>
+    <Screen
+      topInset
+      footer={
+        <>
+          <InlineError error={select.error} />
+          <Button title="Choose plan" onPress={() => chosen && select.mutate(chosen)} disabled={!chosen} loading={select.isPending} />
+        </>
+      }>
+      <StepIndicator current={1} />
+      <Text accessibilityRole="header" style={[theme.type.display, styles.title, { color: colors.text }]}>
+        Choose your membership
+      </Text>
+      <Text style={[theme.type.body, styles.help, { color: colors.textMuted }]}>
         Payment is arranged with The Bonus Club directly. Your membership is activated once payment is confirmed.
       </Text>
       {plans.data.map((plan) => {
@@ -31,34 +47,43 @@ export function ChoosePlanScreen() {
             accessibilityRole="radio"
             accessibilityState={{ selected }}
             onPress={() => setChosen(plan.code)}
-            style={[
+            style={({ pressed }) => [
               styles.plan,
-              { borderRadius: theme.radius, minHeight: theme.minTapSize, backgroundColor: theme.colors.surface, borderColor: selected ? theme.colors.primary : theme.colors.border },
+              {
+                borderRadius: theme.radiusLg,
+                minHeight: theme.minTapSize,
+                backgroundColor: selected ? withAlpha(colors.primary, 0.08) : colors.surface,
+                borderColor: selected ? colors.primary : colors.border,
+                opacity: pressed ? 0.85 : 1,
+              },
             ]}>
-            <Text style={[styles.planName, { color: theme.colors.text }]}>
-              {selected ? '● ' : '○ '}
-              {plan.name}
-            </Text>
-            <Text style={[styles.price, { color: theme.colors.text }]}>
-              {formatMoney(plan.priceCents)} / {plan.durationMonths === 12 ? 'year' : plan.durationMonths === 1 ? 'month' : `${plan.durationMonths} months`}
-            </Text>
+            <View style={styles.planTop}>
+              <Text style={[theme.type.overline, { color: selected ? colors.primary : colors.textMuted }]}>{plan.name}</Text>
+              <View style={[styles.radio, { borderColor: selected ? colors.primary : colors.borderStrong }]}>
+                {selected ? <View style={[styles.radioDot, { backgroundColor: colors.primary }]} /> : null}
+              </View>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={[styles.price, { color: colors.text }]}>{formatMoney(plan.priceCents)}</Text>
+              <Text style={[theme.type.body, { color: colors.textMuted }]}> / {period(plan.durationMonths)}</Text>
+            </View>
             {plan.registrationFeeCents > 0 ? (
-              <Text style={[styles.fee, { color: theme.colors.textMuted }]}>+ {formatMoney(plan.registrationFeeCents)} one-time registration</Text>
+              <Text style={[theme.type.caption, { color: colors.textMuted }]}>+ {formatMoney(plan.registrationFeeCents)} one-time registration</Text>
             ) : null}
           </Pressable>
         );
       })}
-      <InlineError error={select.error} />
-      <Button title="Choose plan" onPress={() => chosen && select.mutate(chosen)} disabled={!chosen} loading={select.isPending} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: 24, fontWeight: '800' },
-  help: { fontSize: 15, marginTop: 4, marginBottom: 20 },
-  plan: { borderWidth: 2, padding: 16, marginBottom: 12 },
-  planName: { fontSize: 17, fontWeight: '700' },
-  price: { fontSize: 16, marginTop: 6 },
-  fee: { fontSize: 14, marginTop: 2 },
+  title: { marginBottom: 6 },
+  help: { marginBottom: 24 },
+  plan: { borderWidth: 1.5, padding: 20, marginBottom: 14 },
+  planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10, marginBottom: 2 },
+  price: { fontSize: 34, fontWeight: '800', letterSpacing: -0.5 },
 });

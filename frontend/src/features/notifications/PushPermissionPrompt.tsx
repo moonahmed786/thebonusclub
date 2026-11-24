@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../../shared/components/Button';
-import { useTheme } from '../../shared/theme/theme';
+import { useTheme, withAlpha } from '../../shared/theme/theme';
 import { registerDevice, requestPushPermission, shouldAskForPushPermission } from './push';
 
 /**
@@ -34,14 +34,17 @@ export function PushPermissionPrompt() {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
       <View style={styles.backdrop}>
-        <View style={[styles.sheet, { backgroundColor: theme.colors.surface, borderRadius: theme.radius }]}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>Stay in the loop</Text>
-          <Text style={[styles.body, { color: theme.colors.textMuted }]}>
+        <View style={[styles.sheet, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderStrong, borderRadius: theme.radiusLg }]}>
+          <View style={[styles.bell, { backgroundColor: withAlpha(theme.colors.primary, 0.12), borderColor: withAlpha(theme.colors.primary, 0.4) }]}>
+            <Text style={[styles.bellGlyph, { color: theme.colors.primary }]}>✦</Text>
+          </View>
+          <Text style={[theme.type.title, styles.title, { color: theme.colors.text }]}>Stay in the loop</Text>
+          <Text style={[theme.type.body, styles.body, { color: theme.colors.textMuted }]}>
             Get a notification when your voucher is ready or used, and before your membership expires. No marketing.
           </Text>
           <Button title="Turn on notifications" onPress={enable} />
           <View style={styles.gap} />
-          <Button title="Not now" variant="secondary" onPress={() => setVisible(false)} />
+          <Button title="Not now" variant="ghost" onPress={() => setVisible(false)} />
         </View>
       </View>
     </Modal>
@@ -49,9 +52,11 @@ export function PushPermissionPrompt() {
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.5)' },
-  sheet: { padding: 20 },
-  title: { fontSize: 20, fontWeight: '800' },
-  body: { fontSize: 15, marginVertical: 12 },
+  backdrop: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0,0,0,0.72)' },
+  sheet: { padding: 24, borderWidth: 1, alignItems: 'stretch' },
+  bell: { width: 56, height: 56, borderRadius: 28, borderWidth: 1, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 },
+  bellGlyph: { fontSize: 24 },
+  title: { textAlign: 'center' },
+  body: { textAlign: 'center', marginTop: 10, marginBottom: 22 },
   gap: { height: 8 },
 });
