@@ -1,4 +1,9 @@
-/** Integration tests against real Postgres, Redis and MongoDB (docker compose up -d). */
+/**
+ * Integration tests against real Postgres and MongoDB (docker compose up -d).
+ * Run via `npm run test:e2e`, which sets NODE_OPTIONS=--experimental-vm-modules: the MongoDB driver
+ * loads `os` with a native dynamic import(), which Jest only supports with that flag. Without it the
+ * handshake is sent with no client metadata and the server rejects it ("Missing required sub-document 'driver'").
+ */
 module.exports = {
   rootDir: '..',
   testEnvironment: 'node',

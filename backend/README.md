@@ -7,9 +7,8 @@ NestJS 11 REST API, deployed as a Vercel Serverless Function. Rules: `CLAUDE.md`
 | Concern | Choice |
 |---|---|
 | Framework | NestJS 11 (Express adapter), TypeScript strict |
-| PostgreSQL | Prisma 7 with the `pg` driver adapter; pooled `DATABASE_URL` (Neon/Supabase pooler) |
+| PostgreSQL | Prisma 7 with the `pg` driver adapter; pooled `DATABASE_URL` (Neon/Supabase pooler). Also holds login sessions and rate-limit counters |
 | MongoDB | Official driver; append-only `audit_events` collection with a JSON-schema validator |
-| Redis | `ioredis` over TCP (Upstash `rediss://` in production): sessions, rate limits, partner cache |
 | Push | `firebase-admin` (FCM), loaded lazily, off unless `NOTIFICATIONS_ENABLED=true` |
 | Docs | Swagger generated from code at `/api-docs` |
 
@@ -17,7 +16,7 @@ NestJS 11 REST API, deployed as a Vercel Serverless Function. Rules: `CLAUDE.md`
 
 ```bash
 cp .env.example .env          # fill in values
-docker compose up -d          # local Postgres, Redis, MongoDB
+docker compose up -d          # local Postgres, MongoDB
 npm install
 npm run migrate:up            # apply Prisma migrations
 npm run mongo:setup           # create Mongo collections, validators, indexes
@@ -47,7 +46,7 @@ npm run dev                   # http://localhost:3000/api/v1, docs at /api-docs
 | 4. Vouchers | `POST /vouchers`, `GET /vouchers`, `GET /vouchers/{id}`; `POST /partner/vouchers/redeem` | Member JWT / partner key |
 | 5. Push | `POST /devices`, `POST /devices/unregister` | Member JWT |
 | Admin data | `POST /admin/partners`, `POST /admin/partners/{id}/api-key`, `POST /admin/offers`, `PATCH /admin/offers/{id}` | Admin JWT |
-| Cron (hidden) | `GET /cron/expire-vouchers`, `GET /cron/membership-expiry-alerts` | `Authorization: Bearer $CRON_SECRET` |
+| Cron (hidden) | `GET /cron/expire-vouchers`, `GET /cron/membership-expiry-alerts`, `GET /cron/purge-expired` | `Authorization: Bearer $CRON_SECRET` |
 
 Partner cashiers authenticate with a per-partner API key in the `X-Partner-Key` header. The key is shown once when the partner is created or rotated and is stored only as a SHA-256 hash.
 

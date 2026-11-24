@@ -7,7 +7,6 @@ import { AppError } from '../../shared/errors/app-error';
 import { ErrorCode } from '../../shared/errors/error-codes';
 import { MemberDto } from '../members/dto/member.dto';
 import { OfferDto } from '../offers/dto/offer.dto';
-import { PartnersService } from '../partners/partners.service';
 import { AdminMemberListDto, CreateOfferDto, CreatePartnerDto, PartnerCreatedDto, UpdateOfferDto } from './dto/admin.dto';
 
 function newPartnerApiKey(): { key: string; hash: string; prefix: string } {
@@ -20,7 +19,6 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly partners: PartnersService,
   ) {}
 
   async listMembers(status: 'INACTIVE' | 'ACTIVE' | undefined, search: string | undefined, page: number, pageSize: number): Promise<AdminMemberListDto> {
@@ -60,7 +58,6 @@ export class AdminService {
       },
     });
     await this.audit.record({ action: 'admin.partner_created', actorType: 'admin', actorId: adminId, subjectType: 'partner', subjectId: partner.id, requestId });
-    await this.partners.invalidateCache();
     return { id: partner.id, name: partner.name, apiKey: apiKey.key };
   }
 
@@ -96,7 +93,6 @@ export class AdminService {
       },
     });
     await this.audit.record({ action: 'admin.offer_created', actorType: 'admin', actorId: adminId, subjectType: 'offer', subjectId: offer.id, requestId });
-    await this.partners.invalidateCache();
     return OfferDto.from(offer);
   }
 
@@ -119,7 +115,6 @@ export class AdminService {
       requestId,
       data: { isPaused: offer.isPaused, endsAt: offer.endsAt?.toISOString() ?? null },
     });
-    await this.partners.invalidateCache();
     return OfferDto.from(offer);
   }
 }

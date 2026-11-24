@@ -78,9 +78,37 @@ model User {
   vouchers             Voucher[]
   verificationCodes    VerificationCode[]
   devices              Device[]
+  sessions             Session[]
 
   @@index([status, expiresAt])
   @@map("users")
+}
+
+// Server-side login sessions. The refresh token is stored only as a SHA-256 hash.
+// Deleting a row revokes the session; expired rows are purged by the daily cron.
+model Session {
+  id          String   @id @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        UserRole
+  refreshHash String   @map("refresh_hash")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// Fixed-window rate-limit counters, one row per bucket, identity and window.
+// Incremented atomically with INSERT ... ON CONFLICT; expired rows are purged by the daily cron.
+model RateLimitCounter {
+  key       String   @id
+  count     Int
+  expiresAt DateTime @map("expires_at")
+
+  @@index([expiresAt])
+  @@map("rate_limit_counters")
 }
 
 model Subscription {

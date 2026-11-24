@@ -29,7 +29,7 @@ Anything outside these six needs a PRD change first. Do not add features "while 
 | API | Node.js REST, Express or NestJS (**undecided, see §8**), deployed as Vercel Serverless Functions |
 | Relational data | PostgreSQL (Managed: Neon / Supabase) with serverless connection pooling |
 | Document data | MongoDB (MongoDB Atlas cloud cluster): logs, audit trails, redemption events |
-| Cache and sessions | Redis (Upstash Redis / Vercel KV): session tokens, cache, rate limiting |
+| Sessions and rate limiting | PostgreSQL tables (`sessions`, `rate_limit_counters`). No Redis. |
 | Push | Firebase Cloud Messaging (FCM) only |
 | API docs | Swagger / OpenAPI at `/api-docs` |
 | Hosting & Infrastructure | Hostinger KVM VPS (Ubuntu LTS) with Docker Compose & NGINX reverse proxy |
@@ -41,13 +41,13 @@ All backend components run on a single Hostinger KVM VPS containerized with **Do
 - **Reverse Proxy & SSL:** NGINX handles SSL termination (Let's Encrypt / Certbot with automated renewal), rate limiting buffers, and forwards `/api` and `/api-docs` to the Node.js API container.
 - **Service Isolation & Networking:**
   - Only ports `80` (HTTP), `443` (HTTPS), and `SSH` are open via UFW.
-  - PostgreSQL (`5432`), MongoDB (`27017`), and Redis (`6379`) bind strictly to the internal Docker network, never exposed publicly.
+  - PostgreSQL (`5432`) and MongoDB (`27017`) bind strictly to the internal Docker network, never exposed publicly.
 - **Process & Lifecycle Management:**
   - Containers run with `restart: unless-stopped`.
   - Memory and CPU limits defined in `docker-compose.yml` to prevent any single service causing Out-Of-Memory (OOM) kernel kills on the VPS.
   - Docker log rotation enabled (`json-file`, `max-size: 10m`, `max-file: 3`) to avoid exhausting VPS disk space.
 - **Data Persistence & Backups:**
-  - Persistent Docker named volumes for PostgreSQL data, MongoDB data, and Redis AOF/RDB dumps.
+  - Persistent Docker named volumes for PostgreSQL data and MongoDB data.
   - Automated backup scripts (cron): daily `pg_dump` and `mongodump` rotated and compressed, supplemented by Hostinger automated VPS snapshots.
 - **Environment & Secrets:**
   - Production secrets stored in a server-side `.env` (`chmod 600`) loaded by Docker Compose; never committed to git.
@@ -56,9 +56,9 @@ Do not add a new database, queue, or third-party service without asking. Each on
 
 ## 3. Data ownership rules
 
-- **PostgreSQL is the source of truth** for money and entitlement: membership state, payments, voucher issuance and status. If Mongo or Redis disagrees with Postgres, Postgres wins.
+- **PostgreSQL is the source of truth** for money and entitlement: membership state, payments, voucher issuance and status. If Mongo disagrees with Postgres, Postgres wins.
 - **MongoDB is append-mostly.** Use it for logs, audit trails, and redemption event history. Never use it to decide whether a voucher is valid.
-- **Redis is a cache.** Every value in Redis must be rebuildable from Postgres. Losing Redis must not lose data; it may only force users to sign in again or slow requests down.
+- **No Redis.** Login sessions and rate-limit counters live in Postgres. There is no cache layer; read from Postgres directly.
 - Never store full card numbers, CVV, or bank details. Payment is collected off-system; we store only a payment reference and amount if one is needed.
 
 ## 4. Business rules (must hold everywhere)
@@ -82,9 +82,9 @@ Do not add a new database, queue, or third-party service without asking. Each on
 ## 5. Security (non-negotiable)
 
 - All API traffic over HTTPS only.
-- JWT auth for member endpoints. Access tokens short-lived; refresh tokens stored server-side (Redis) and revocable.
+- JWT auth for member endpoints. Access tokens short-lived; refresh tokens stored server-side (Postgres `sessions`, hashed) and revocable.
 - Admin activation and any admin endpoint require a separate admin role and are not reachable with a member token.
-- Rate-limit login, registration, code verification, and voucher claim (Redis).
+- Rate-limit login, registration, code verification, and voucher claim (Postgres `rate_limit_counters`).
 - Hash passwords with a modern algorithm (bcrypt or argon2). Never log passwords, tokens, or full voucher codes.
 - Secrets live in environment variables or a secret manager. Never commit `.env`. Never put secrets in the mobile bundle.
 - Validate every request body, query, and path parameter against a schema. Return consistent error shapes with correct HTTP status codes.

@@ -4,7 +4,6 @@ import bcrypt from 'bcryptjs';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { buildOpenApiDocument, configureApp } from '../src/app.setup';
-import { RedisService } from '../src/shared/cache/redis.service';
 import { MongoService } from '../src/shared/db/mongo.service';
 import { PrismaService } from '../src/shared/db/prisma.service';
 import { sha256 } from '../src/shared/crypto/codes';
@@ -33,9 +32,8 @@ describe('The Bonus Club API (e2e)', () => {
 
     if (!/_test(\?|$)/.test(process.env.DATABASE_URL ?? '')) throw new Error('Refusing to wipe a non-test database');
     await prisma.$executeRawUnsafe(
-      'TRUNCATE devices, verification_codes, vouchers, offers, partners, categories, payments, subscriptions, users, plans CASCADE',
+      'TRUNCATE sessions, rate_limit_counters, devices, verification_codes, vouchers, offers, partners, categories, payments, subscriptions, users, plans CASCADE',
     );
-    await app.get(RedisService).client.flushdb();
     await app.get(MongoService).db().collection('audit_events').deleteMany({});
 
     await prisma.plan.create({ data: { code: 'ANNUAL', name: 'Annual membership', priceCents: 9900, durationMonths: 12 } });
@@ -112,6 +110,25 @@ describe('The Bonus Club API (e2e)', () => {
       await http.post(`${API}/auth/refresh`).send({ refreshToken: m.refresh }).expect(401);
       // Reuse revoked the whole session, so even the newest token is dead now.
       await http.post(`${API}/auth/refresh`).send({ refreshToken: first.body.refreshToken }).expect(401);
+    });
+
+    it('rejects a malformed refresh token with 401, not 500', async () => {
+      const res = await http.post(`${API}/auth/refresh`).send({ refreshToken: 'not-a-uuid.secret' }).expect(401);
+      expect(res.body.error.code).toBe('INVALID_REFRESH_TOKEN');
+    });
+
+    it('rate-limits login per client with 429', async () => {
+      await prisma.rateLimitCounter.deleteMany({});
+      const body = { email: 'nobody@example.com', password: 'wrong-pass' };
+      await http.post(`${API}/auth/login`).send(body).expect(401);
+      // Fast-forward this client's counter to the limit instead of sending 1000 requests.
+      await prisma.rateLimitCounter.updateMany({
+        where: { key: { startsWith: 'rl:login:' } },
+        data: { count: Number(process.env.RATE_LIMIT_LOGIN) },
+      });
+      const res = await http.post(`${API}/auth/login`).send(body).expect(429);
+      expect(res.body.error.code).toBe('RATE_LIMITED');
+      await prisma.rateLimitCounter.deleteMany({});
     });
 
     it('logout ends the session for the access token', async () => {
@@ -260,6 +277,23 @@ describe('The Bonus Club API (e2e)', () => {
 
       const redeem = await http.post(`${API}/partner/vouchers/redeem`).set('x-partner-key', PARTNER_KEY).send({ code: claimed.body.code }).expect(409);
       expect(redeem.body.error.code).toBe('VOUCHER_EXPIRED');
+    });
+
+    it('purges expired sessions and rate-limit windows via cron, keeping live ones', async () => {
+      const live = await registerMember('purge-live@example.com');
+      const stale = await registerMember('purge-stale@example.com');
+      await prisma.session.updateMany({ where: { userId: stale.id }, data: { expiresAt: new Date(Date.now() - 1000) } });
+      await prisma.rateLimitCounter.create({ data: { key: 'rl:test:old', count: 1, expiresAt: new Date(Date.now() - 1000) } });
+
+      await http.get(`${API}/cron/purge-expired`).expect(401);
+      const first = await http.get(`${API}/cron/purge-expired`).set('Authorization', 'Bearer test-cron-secret').expect(200);
+      expect(first.body.sessions).toBeGreaterThanOrEqual(1);
+      expect(first.body.rateLimits).toBeGreaterThanOrEqual(1);
+      const second = await http.get(`${API}/cron/purge-expired`).set('Authorization', 'Bearer test-cron-secret').expect(200);
+      expect(second.body).toEqual({ sessions: 0, rateLimits: 0 });
+
+      await http.get(`${API}/members/me`).set('Authorization', `Bearer ${stale.token}`).expect(401);
+      await http.get(`${API}/members/me`).set('Authorization', `Bearer ${live.token}`).expect(200);
     });
   });
 
