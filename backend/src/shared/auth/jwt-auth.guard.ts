@@ -11,6 +11,9 @@ export interface AccessTokenPayload {
   role: 'MEMBER' | 'ADMIN';
 }
 
+// @Injectable() here makes TypeScript emit the constructor's parameter types; the subclasses have no
+// constructor of their own, so without it Nest injects nothing and every request is rejected with 401.
+@Injectable()
 abstract class BaseJwtGuard implements CanActivate {
   protected abstract readonly requiredRole: 'MEMBER' | 'ADMIN';
 
